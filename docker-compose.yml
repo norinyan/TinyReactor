@@ -1,0 +1,25 @@
+
+services:
+  dev:
+    build: .
+    container_name: tinyreactor_dev
+    volumes: 
+      - .:/workspace
+    ports: 
+      - "1316:1316"
+    stdin_open: true
+    tty: true
+
+  mysql:
+    image: mysql:8.0
+    container_name: tinyreactor_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: tinyreactor
+    ports: 
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
