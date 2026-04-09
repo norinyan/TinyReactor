@@ -186,7 +186,19 @@ CMakeFiles/server.dir/src/buffer.cpp.o: ../src/buffer.cpp \
   /usr/include/c++/11/bits/node_handle.h \
   /usr/include/c++/11/bits/unordered_map.h \
   /usr/include/c++/11/bits/erase_if.h \
-  /usr/include/c++/11/pstl/execution_defs.h
+  /usr/include/c++/11/pstl/execution_defs.h \
+  /usr/include/aarch64-linux-gnu/sys/uio.h \
+  /usr/include/aarch64-linux-gnu/bits/types/struct_iovec.h \
+  /usr/include/aarch64-linux-gnu/bits/uio_lim.h \
+  /usr/include/aarch64-linux-gnu/bits/uio-ext.h \
+  /usr/include/unistd.h \
+  /usr/include/aarch64-linux-gnu/bits/posix_opt.h \
+  /usr/include/aarch64-linux-gnu/bits/environments.h \
+  /usr/include/aarch64-linux-gnu/bits/confname.h \
+  /usr/include/aarch64-linux-gnu/bits/getopt_posix.h \
+  /usr/include/aarch64-linux-gnu/bits/getopt_core.h \
+  /usr/include/aarch64-linux-gnu/bits/unistd_ext.h \
+  /usr/include/linux/close_range.h
 
 CMakeFiles/server.dir/src/main.cpp.o: ../src/main.cpp \
   /usr/include/stdc-predef.h \
@@ -385,8 +397,6 @@ CMakeFiles/server.dir/src/main.cpp.o: ../src/main.cpp \
 
 /usr/include/aarch64-linux-gnu/c++/11/bits/ctype_inline.h:
 
-/usr/include/aarch64-linux-gnu/c++/11/bits/ctype_base.h:
-
 /usr/include/wctype.h:
 
 /usr/include/c++/11/cwctype:
@@ -413,9 +423,25 @@ CMakeFiles/server.dir/src/main.cpp.o: ../src/main.cpp \
 
 ../src/main.cpp:
 
+/usr/include/aarch64-linux-gnu/bits/getopt_core.h:
+
+/usr/include/aarch64-linux-gnu/bits/confname.h:
+
+/usr/include/aarch64-linux-gnu/bits/environments.h:
+
+/usr/include/unistd.h:
+
+/usr/include/aarch64-linux-gnu/bits/uio-ext.h:
+
+/usr/include/aarch64-linux-gnu/c++/11/bits/ctype_base.h:
+
+/usr/include/aarch64-linux-gnu/bits/types/struct_iovec.h:
+
 /usr/include/c++/11/pstl/execution_defs.h:
 
 /usr/include/c++/11/bits/unordered_map.h:
+
+/usr/include/aarch64-linux-gnu/bits/uio_lim.h:
 
 /usr/include/c++/11/bits/node_handle.h:
 
@@ -519,9 +545,13 @@ CMakeFiles/server.dir/src/main.cpp.o: ../src/main.cpp \
 
 /usr/include/aarch64-linux-gnu/bits/types/locale_t.h:
 
+/usr/include/linux/close_range.h:
+
 /usr/include/c++/11/debug/assertions.h:
 
 /usr/include/aarch64-linux-gnu/c++/11/bits/c++allocator.h:
+
+/usr/include/aarch64-linux-gnu/bits/unistd_ext.h:
 
 /usr/include/aarch64-linux-gnu/bits/byteswap.h:
 
@@ -618,6 +648,8 @@ CMakeFiles/server.dir/src/main.cpp.o: ../src/main.cpp \
 ../src/buffer.cpp:
 
 /usr/include/aarch64-linux-gnu/c++/11/bits/os_defines.h:
+
+/usr/include/aarch64-linux-gnu/bits/getopt_posix.h:
 
 /usr/include/aarch64-linux-gnu/bits/types/clock_t.h:
 
@@ -753,6 +785,8 @@ CMakeFiles/server.dir/src/main.cpp.o: ../src/main.cpp \
 
 /usr/include/c++/11/iostream:
 
+/usr/include/aarch64-linux-gnu/bits/posix_opt.h:
+
 /usr/include/c++/11/algorithm:
 
 /usr/include/aarch64-linux-gnu/bits/floatn.h:
@@ -806,5 +840,7 @@ CMakeFiles/server.dir/src/main.cpp.o: ../src/main.cpp \
 /usr/include/aarch64-linux-gnu/bits/types/__sigset_t.h:
 
 /usr/include/aarch64-linux-gnu/bits/types/struct___jmp_buf_tag.h:
+
+/usr/include/aarch64-linux-gnu/sys/uio.h:
 
 /usr/include/aarch64-linux-gnu/c++/11/bits/atomic_word.h:
