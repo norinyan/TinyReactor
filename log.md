@@ -333,7 +333,7 @@ make
 下一步：
 - 开始写第一个正式模块：`Buffer`
 - 后续实现顺序：
-  1. Buffer
+  1. Buffer 
   2. Log
   3. ThreadPool
   4. HeapTimer
