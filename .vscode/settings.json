@@ -1,0 +1,7 @@
+{
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build_local"
+    ],
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build_local/compile_commands.json",
+    "cmake.configureOnOpen": true
+}
