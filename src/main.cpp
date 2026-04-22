@@ -1,21 +1,22 @@
 #include <iostream>
 #include "buffer.h"
-#include <string>
+#include "log.h"
 
-  int main() {
-      Buffer buff;
+int main() {
+    // ---- 测 Buffer ----
+    Buffer buff;
+    buff.Append("hello world", 11);
+    std::cout << "[Buffer] readable: " << buff.ReadableBytes() << std::endl;
+    buff.Retrieve(6);
+    std::cout << "[Buffer] after Retrieve(6): " 
+              << std::string(buff.Peek(), buff.ReadableBytes()) << std::endl;
 
-      buff.Append("hello world", 11);
-      std::cout << "ReadableBytes: " << buff.ReadableBytes() << std::endl;
-      std::cout << "Data: " << std::string(buff.Peek(), buff.ReadableBytes()) << std::endl;
+    // ---- 测 Log ----
+    Log::Instance()->init(0, "/workspace/log", ".log", 1024);
+    LOG_DEBUG("debug msg");
+    LOG_INFO("info msg, port = %d", 1316);
+    LOG_WARN("warn msg");
+    LOG_ERROR("error msg");
 
-      buff.Retrieve(6);
-      std::cout << "After Retrieve(6), ReadableBytes: " << buff.ReadableBytes() << std::endl;
-      std::cout << "Data after Retrieve(6): "
-                << std::string(buff.Peek(), buff.ReadableBytes()) << std::endl;
-
-      buff.RetrieveAll();
-      std::cout << "After RetrieveAll, ReadableBytes: " << buff.ReadableBytes() << std::endl;
-
-      return 0;
-  }
+    return 0;
+}
