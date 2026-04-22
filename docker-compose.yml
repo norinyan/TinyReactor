@@ -9,6 +9,8 @@ services:
       - "1316:1316"
     stdin_open: true
     tty: true
+    environment:
+      - TZ=Asia/Shanghai
 
   mysql:
     image: mysql:8.0

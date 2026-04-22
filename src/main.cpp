@@ -1,6 +1,8 @@
 #include <iostream>
 #include "buffer.h"
 #include "log.h"
+#include "threadpool.h"
+#include <unistd.h>
 
 int main() {
     // ---- 测 Buffer ----
@@ -17,6 +19,17 @@ int main() {
     LOG_INFO("info msg, port = %d", 1316);
     LOG_WARN("warn msg");
     LOG_ERROR("error msg");
+
+    // 测threadpool
+    ThreadPool pool(4);
+    
+    for (int i = 0; i < 8; ++i) {
+        pool.AddTask([i] {
+            std::cout << "task " << i << " running\n";
+        });
+    }
+    
+    sleep(1);  // 等线程执行完
 
     return 0;
 }

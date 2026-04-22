@@ -2,174 +2,121 @@
 
 TinyReactor 是一个基于 **Reactor 模式** 实现的轻量级 C++ Web 服务器项目。
 
-这个项目的目标不是简单复刻，而是以工程化方式，从零手写并逐步实现一个可运行的高性能服务器，在实践中学习：
+目标不是简单复刻，而是以工程化方式从零手写，在实践中学习 Linux 系统编程、网络编程、并发编程等核心知识。
 
-- Linux 网络编程
-- Epoll I/O 多路复用
-- Reactor 事件驱动模型
-- 线程池与并发编程
-- 定时器与连接管理
-- HTTP 请求解析与响应生成
-- MySQL 连接池
-- CMake 工程化构建
-- Docker 跨平台一致开发环境
+## 技术栈
 
-## 项目目标
+- **语言**：C++17
+- **构建**：CMake
+- **开发环境**：Docker（Ubuntu 22.04）
+- **编译器**：g++ 11.4.0
+- **数据库**：MySQL 8.0
 
-- 用 **C++17** 手写实现一个高性能 Web 服务器
-- 使用 **CMake** 管理构建流程
-- 使用 **Docker** 统一 macOS / Linux / Windows 的开发环境
-- 在“边做边学”的过程中沉淀自己的理解、笔记和工程经验
+## 开发环境
 
-## 当前开发环境
+本项目全程在 Docker 容器中开发，保证跨平台环境一致。
 
-本项目全程在 Docker 容器中开发，当前已验证环境如下：
+```bash
+# 启动容器
+docker compose up -d
 
-- Ubuntu 22.04
-- g++ 11.4.0
-- CMake 3.22.1
-- MySQL 8.0
+# 进入开发容器
+docker exec -it tinyreactor_dev bash
+
+# 编译
+cd /workspace/build
+cmake ..
+make
+
+# 运行
+./server
+```
 
 ## 目录结构
 
-```text
-TinyReactor
+```
+TinyReactor/
+├── include/          # 头文件
+│   ├── buffer.h
+│   ├── blockdeque.h
+│   └── log.h
+├── src/              # 实现文件
+│   ├── buffer.cpp
+│   ├── log.cpp
+│   └── main.cpp
+├── log/              # 运行时日志文件（不进 git）
 ├── CMakeLists.txt
 ├── Dockerfile
-├── README.md
-├── docker-compose.yml
-├── include
-├── log.md
-└── src
+└── docker-compose.yml
 ```
 
-后续会逐步扩展为更规范的工程目录结构。
+## 已实现模块
 
-## 快速开始
+### Buffer — 动态缓冲区
 
-### 1. 启动容器
+基于 `std::vector<char>` 实现的动态字节缓冲区，用 `readPos_` 和 `writePos_` 两个位置标记把连续内存逻辑上划分为三段：已读区、可读区、可写区。
 
-```bash
-docker compose up -d
+核心设计：
+- `Append()` 往尾部追加数据，空间不足时自动扩容或整理碎片（`MakeSpace`）
+- `Retrieve()` 消费数据，本质是移动 `readPos_`，不做内存拷贝
+- `ReadFd()` 使用 `readv` 分散读，栈上临时缓冲区兜底，一次 syscall 读尽数据
+- `WriteFd()` 把可读区数据直接 `write` 到 fd
+
+在 Log 模块中作为格式化工作台复用，每条日志拼好后整体取走，Buffer 清空备用。
+
+### BlockDeque — 线程安全阻塞队列
+
+模板类，`std::deque<T>` 加锁封装，实现生产者/消费者模型。
+
+核心设计：
+- 两个 `condition_variable` 分别管理"不空"和"不满"两个等待条件，职责清晰
+- `push_back()` 用 `unique_lock` + `wait`，队满自动阻塞
+- `pop()` 返回 `std::optional<T>`（C++17），队空阻塞，队列关闭返回 `std::nullopt`，比输出参数写法更现代
+- `Close()` 先加锁置关闭标志，再 `notify_all` 唤醒所有阻塞线程安全退出
+- 显式禁用拷贝构造和拷贝赋值（内部持有 mutex，不可拷贝）
+
+### Log — 异步日志系统
+
+单例模式，支持同步和异步两种写入模式，对业务线程无感知。
+
+核心设计：
+- **异步模式**：业务线程调 `write()` 只把格式化好的字符串推进 `BlockDeque`，立即返回；后台写线程 `AsyncWrite_()` 循环消费队列写文件，两者完全解耦
+- **同步模式**：`maxQueueSize = 0` 时不创建队列和写线程，直接 `fputs` 写文件
+- `write()` 内部用 `Buffer` 拼装完整日志行（时间戳 + 级别前缀 + 用户消息），`vsnprintf` 返回值做钳制处理，防止越界
+- 时间函数使用 `localtime_r`（线程安全），而非标准库的 `localtime`
+- 按天自动切割日志文件，单文件超过 50000 行时按编号新建
+- 对外暴露四个宏 `LOG_DEBUG / LOG_INFO / LOG_WARN / LOG_ERROR`，用 `do { } while(0)` 包裹保证在任意语法位置安全展开
+
+日志格式：
+```
+2026-04-22 08:50:44.472649 [info] : server starting, port = 1316
 ```
 
-### 2. 查看容器是否启动成功
+### ThreadPool — 线程池
 
-```bash
-docker ps
-```
+基于生产者/消费者模型实现的固定大小线程池，所有工作线程共享一个任务队列。
 
-应该能看到两个容器：
+核心设计：
+- 用 `struct Pool` 把锁、条件变量、关闭标志、任务队列打包，通过 `std::shared_ptr<Pool>` 在线程池对象和所有工作线程之间共享，保证线程池析构后工作线程仍能安全访问数据直到真正退出
+- 工作线程逻辑直接写在构造函数的 lambda 里：持锁等待 → 有任务则取出解锁执行 → 执行完重新加锁回到等待；锁只保护队列操作，执行任务期间不持锁，保证并发
+- `AddTask()` 用万能引用 `F&&` + `std::forward` 完美转发，支持 lambda、函数指针等所有可调用对象，零拷贝传入队列
+- 工作线程用 `detach` 独立运行，生命周期由 `shared_ptr` 引用计数保证
+- 纯头文件实现（`threadpool.h`），无需 `.cpp`
 
-- `tinyreactor_dev`：开发容器
-- `tinyreactor_db`：MySQL 容器
+## 待实现模块
 
-### 3. 进入开发容器
-
-```bash
-docker exec -it tinyreactor_dev bash
-```
-
-进入后，项目目录位于：
-
-```bash
-/workspace
-```
-
-宿主机与容器之间通过 volume 同步代码：
-
-- 你在本地编辑代码，容器里会同步更新
-- 你在容器里编译运行，本地也能看到生成的内容
-
-### 4. 第一次编译运行
-
-```bash
-mkdir -p build
-cd build
-cmake ..
-make
-./server
-```
-
-如果成功，应该看到：
-
-```bash
-TinyReactor starting ...
-```
-
-## 日常开发操作流
-
-### 修改普通源码文件后
-
-```bash
-cd /workspace/build
-make
-./server
-```
-
-### 修改 CMakeLists.txt 或新增源文件后
-
-```bash
-cd /workspace/build
-cmake ..
-make
-./server
-```
-
-### 退出容器
-
-```bash
-exit
-```
-
-### 停止容器
-
-```bash
-docker compose down
-```
-
-### 停止容器并删除 MySQL 数据卷
-
-```bash
-docker compose down -v
-```
-
-## 计划实现的模块
-
-按这个顺序逐步实现：
-
-1. Buffer 缓冲区
-2. Log 日志系统
-3. ThreadPool 线程池
-4. HeapTimer 定时器
-5. MySQL 连接池
-6. HTTP 请求解析
-7. HTTP 响应封装
-8. Epoller 封装
-9. WebServer 核心调度
+| 顺序 | 模块 | 状态 |
+|------|------|------|
+| 1 | Buffer | ✅ 完成 |
+| 2 | Log | ✅ 完成 |
+| 3 | ThreadPool | ✅ 完成 |
+| 4 | HeapTimer | 🔲 待实现 |
+| 5 | MySQL 连接池 | 🔲 待实现 |
+| 6 | HTTP 请求解析 | 🔲 待实现 |
+| 7 | HTTP 响应封装 | 🔲 待实现 |
+| 8 | Epoller | 🔲 待实现 |
+| 9 | WebServer | 🔲 待实现 |
 
 ## 参考说明
 
-本项目的整体学习路线与部分架构思路参考了优秀开源项目：
-
-- [markparticle/WebServer](https://github.com/markparticle/WebServer)
-
-但本项目会坚持：
-
-- 自己手写代码
-- 使用 C++17 重构实现
-- 使用 CMake 进行工程化管理
-- 使用 Docker 统一开发环境
-- 根据自己的理解调整目录结构与实现细节
-
-## 项目状态
-
-当前已完成：
-
-- 项目基础目录初始化
-- Docker 开发环境搭建
-- MySQL 容器编排
-- CMake 基础构建链路打通
-- 第一个可执行程序成功运行
-
-后续将从 **Buffer 模块** 开始逐步实现。
+整体架构思路参考 [markparticle/WebServer](https://github.com/markparticle/WebServer)，代码基于 C++17 自行实现，结合工程规范做了调整和改进。
