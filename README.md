@@ -103,6 +103,17 @@ TinyReactor/
 - 工作线程用 `detach` 独立运行，生命周期由 `shared_ptr` 引用计数保证
 - 纯头文件实现（`threadpool.h`），无需 `.cpp`
 
+### HeapTimer — 连接超时管理器
+
+基于最小堆实现的定时器，管理所有连接的超时，超时的连接自动触发回调关闭。
+
+核心设计：
+- 用 `std::vector<TimerNode>` 数组模拟最小堆，堆顶永远是最快过期的连接，`tick()` 只需看堆顶，不用遍历全部
+- 用 `std::unordered_map<int, size_t>` 哈希表记录 fd 到堆中下标的映射，`update()` 刷新某个连接的超时时间时 O(1) 定位，不需要遍历
+- `add()` 新连接进来挂号登记，`update()` 有数据来了把闹钟往后拨，`tick()` 定期检查超时触发回调，`del_()` 支持删除堆中任意位置节点（正常完成的连接主动删除）
+- `getNextTick()` 返回距离下一个超时的毫秒数，直接传给 `epoll_wait` 的超时参数，让事件循环到时间自动醒来执行 `tick()`
+- 节点删除用"换到末尾再 pop_back"的方式，避免数组中间删除的移位开销，换上来的节点做 siftDown/siftUp 重新调整位置
+- 
 ## 待实现模块
 
 | 顺序 | 模块 | 状态 |
@@ -110,7 +121,7 @@ TinyReactor/
 | 1 | Buffer | ✅ 完成 |
 | 2 | Log | ✅ 完成 |
 | 3 | ThreadPool | ✅ 完成 |
-| 4 | HeapTimer | 🔲 待实现 |
+| 4 | HeapTimer | ✅ 完成  |
 | 5 | MySQL 连接池 | 🔲 待实现 |
 | 6 | HTTP 请求解析 | 🔲 待实现 |
 | 7 | HTTP 响应封装 | 🔲 待实现 |

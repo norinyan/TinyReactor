@@ -11,4 +11,5 @@ add_executable(server
     src/main.cpp
     src/buffer.cpp
     src/log.cpp
+    src/heaptimer.cpp
 )
