@@ -18,32 +18,36 @@
 
 ## 项目结构
 ```
-TinyReactor/
 ├── include/
 │   ├── buffer.h
 │   ├── blockdeque.h
-│   └── log.h
+│   ├── log.h
+│   ├── threadpool.h
+│   ├── heaptimer.h
+│   ├── sqlconnpool.h
+│   └── sqlconnRAII.h
 ├── src/
 │   ├── buffer.cpp
 │   ├── log.cpp
+│   ├── heaptimer.cpp
+│   ├── sqlconnpool.cpp
 │   └── main.cpp
-├── log/
-├── CMakeLists.txt
-├── Dockerfile
-└── docker-compose.yml
 ```
 
 ## 已完成模块
 - **Buffer**：基于 `std::vector<char>` 的动态缓冲区，readPos_ / writePos_ 双指针管理
 - **BlockDeque**：模板类，`std::deque` + `mutex` + `condition_variable`，`pop()` 返回 `std::optional<T>`
 - **Log**：单例异步日志，Buffer 做格式化工作台，BlockDeque 做异步队列，后台写线程消费
+- **ThreadPool**：固定大小线程池，任务队列 + 条件变量唤醒，支持并发执行任务
+- **HeapTimer**：最小堆定时器，管理连接超时，支持 O(1) 定位更新
+- **SqlConnPool**：MySQL 连接池，信号量控制并发取连接，SqlConnRAII 自动管理连接借还
 
 ## 待实现模块
 1. ~~Buffer~~
 2. ~~Log~~
-3. ThreadPool
-4. HeapTimer
-5. MySQL 连接池
+3. ~~ThreadPool~~
+4. ~~HeapTimer~~
+5. ~~MySQL 连接池~~
 6. HTTP 请求解析
 7. HTTP 响应封装
 8. Epoller

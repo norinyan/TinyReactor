@@ -12,4 +12,7 @@ add_executable(server
     src/buffer.cpp
     src/log.cpp
     src/heaptimer.cpp
+    src/sqlconnpool.cpp
+    src/httprequest.cpp
 )
+target_link_libraries(server mysqlclient)
