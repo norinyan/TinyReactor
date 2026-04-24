@@ -14,5 +14,6 @@ add_executable(server
     src/heaptimer.cpp
     src/sqlconnpool.cpp
     src/httprequest.cpp
+    src/httpresponse.cpp
 )
 target_link_libraries(server mysqlclient)
