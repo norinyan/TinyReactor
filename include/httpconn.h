@@ -40,7 +40,7 @@ public:
     bool IsKeepAlive() const;
 
     // 当前还剩多少字节待发送
-    int ToWriteBytes() const;
+    size_t ToWriteBytes() const;
 
 private:
     // 第一阶段只做静态 GET 路由（例如 / -> /index.html）

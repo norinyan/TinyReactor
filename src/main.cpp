@@ -1,108 +1,93 @@
 #include <iostream>
-#include "buffer.h"
-#include "log.h"
-#include "threadpool.h"
-#include "heaptimer.h"
-#include "sqlconnpool.h"
-#include "sqlconnRAII.h"
-#include "httprequest.h"
+#include <string>
 
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
+#include "httpconn.h"
+#include "sqlconnpool.h"
+
 int main() {
-    // ---- 测 Buffer ----
-    Buffer buff;
-    buff.Append("hello world", 11);
-    std::cout << "[Buffer] readable: " << buff.ReadableBytes() << std::endl;
-    buff.Retrieve(6);
-    std::cout << "[Buffer] after Retrieve(6): " 
-              << std::string(buff.Peek(), buff.ReadableBytes()) << std::endl;
+    SqlConnPool* pool = SqlConnPool::Instance();
+    pool->Init("mysql", 3306, "root", "root", "tinyreactor", 5);
 
-    // ---- 测 Log ----
-    Log::Instance()->init(0, "/workspace/log", ".log", 1024);
-    LOG_DEBUG("debug msg");
-    LOG_INFO("info msg, port = %d", 1316);
-    LOG_WARN("warn msg");
-    LOG_ERROR("error msg");
+    std::cout << "[SqlConnPool] free conn: "
+              << pool->GetFreeConnCount() << std::endl;
 
-    // ---- 测 ThreadPool ----
-    ThreadPool pool(4);
-    for (int i = 0; i < 8; ++i) {
-        pool.AddTask([i] {
-            std::cout << "task " << i << " running\n";
-        });
+    int fds[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) < 0) {
+        std::cout << "[socketpair] create failed\n";
+        pool->ClosePool();
+        return 1;
     }
-    sleep(1);
 
-    // ---- 测 HeapTimer ----
-    HeapTimer timer;
+    int clientFd = fds[0];
+    int serverFd = fds[1];
 
-    // 添加三个连接，超时时间不同
-    timer.add(1, 100, [] { std::cout << "[HeapTimer] fd=1 timeout, closed\n"; });
-    timer.add(2, 200, [] { std::cout << "[HeapTimer] fd=2 timeout, closed\n"; });
-    timer.add(3, 300, [] { std::cout << "[HeapTimer] fd=3 timeout, closed\n"; });
+    std::string request =
+        "POST /register.html HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "Connection: close\r\n"
+        "Content-Type: application/x-www-form-urlencoded\r\n"
+        "Content-Length: 35\r\n"
+        "\r\n"
+        "username=http_user1&password=123456";
 
-    std::cout << "[HeapTimer] next tick in: " << timer.getNextTick() << "ms\n";
+    ssize_t writeLen = write(clientFd, request.data(), request.size());
+    std::cout << "[Client] write bytes: " << writeLen << std::endl;
 
-    // 等 150ms，fd=1 应该超时，fd=2 fd=3 还没到
-    usleep(150000);
-    timer.tick();
+    shutdown(clientFd, SHUT_WR);
 
-    // 刷新 fd=2 的超时时间，再加 300ms
-    timer.update(2, 300);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(1316);
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
 
-    // 等 200ms，fd=3 应该超时
-    usleep(200000);
-    timer.tick();
+    HttpConn::srcDir = "../resources";
+    HttpConn::isET = false;
 
-    // 等 200ms，fd=2 超时
-    usleep(200000);
-    timer.tick();
+    HttpConn conn;
+    conn.Init(serverFd, addr);
 
-    // 2) 在 main() 里 return 0 前新增（建议放在 HeapTimer 测试后面）
-    // ---- 测 SqlConnPool + SqlConnRAII ----
-    // 在 dev 容器里连 mysql 服务：host="mysql", port=3306
-    // 如果你在宿主机本地跑程序，则一般是 host="127.0.0.1", port=3307
-    SqlConnPool* sqlpool = SqlConnPool::Instance();
-    sqlpool->Init("mysql", 3306, "root", "root", "tinyreactor", 5);
+    int saveErrno = 0;
 
-    std::cout << "[SqlConnPool] free before: " << sqlpool->GetFreeConnCount() << std::endl;
+    ssize_t readLen = conn.Read(&saveErrno);
+    std::cout << "[HttpConn] read bytes: " << readLen << std::endl;
 
-    MYSQL* sql = nullptr;
-    {
-        // 进入作用域自动取连接，离开作用域自动还连接
-        SqlConnRAII raii(&sql, sqlpool);
-
-        if (!sql) {
-            std::cout << "[SqlConnPool] GetConn failed\n";
-        } else {
-            // 最小可用性测试：SELECT 1
-            if (mysql_query(sql, "SELECT 1;") == 0) {
-                MYSQL_RES* res = mysql_store_result(sql);
-                if (res) {
-                    MYSQL_ROW row = mysql_fetch_row(res);
-                    if (row && row[0]) {
-                        std::cout << "[MySQL] SELECT 1 result: " << row[0] << std::endl;
-                    }
-                    mysql_free_result(res);
-                } else {
-                    // 理论上 SELECT 会有结果集，这里做个保护输出
-                    std::cout << "[MySQL] store result empty, errno="
-                            << mysql_errno(sql) << " msg=" << mysql_error(sql) << std::endl;
-                }
-            } else {
-                std::cout << "[MySQL] query failed, errno="
-                        << mysql_errno(sql) << " msg=" << mysql_error(sql) << std::endl;
-            }
-        }
-
-        std::cout << "[SqlConnPool] free in scope: " << sqlpool->GetFreeConnCount() << std::endl;
+    if (!conn.Process()) {
+        std::cout << "[HttpConn] process failed\n";
+        conn.Close();
+        close(clientFd);
+        pool->ClosePool();
+        return 1;
     }
-    std::cout << "[SqlConnPool] free after scope: " << sqlpool->GetFreeConnCount() << std::endl;
 
-    sqlpool->ClosePool();
+    std::cout << "[HttpConn] response bytes: "
+              << conn.ToWriteBytes() << std::endl;
 
+    ssize_t sendLen = conn.Write(&saveErrno);
+    std::cout << "[HttpConn] write bytes: " << sendLen << std::endl;
 
+    char buff[4096];
+    ssize_t recvLen = read(clientFd, buff, sizeof(buff) - 1);
+
+    if (recvLen > 0) {
+        buff[recvLen] = '\0';
+        std::cout << "\n========== Client Recv ==========\n";
+        std::cout << std::string(buff, static_cast<size_t>(recvLen)) << std::endl;
+    } else {
+        std::cout << "[Client] read response failed, len="
+                  << recvLen << std::endl;
+    }
+
+    conn.Close();
+    close(clientFd);
+
+    std::cout << "[SqlConnPool] free conn after: "
+              << pool->GetFreeConnCount() << std::endl;
+
+    pool->ClosePool();
 
     return 0;
 }
