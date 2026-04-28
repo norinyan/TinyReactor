@@ -36,6 +36,13 @@ src/
 
 文件：include/epoller.h
 
+需要包含：
+
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+#include <sys/epoll.h>
+
 class Epoller {
 public:
     explicit Epoller(int maxEvent = 1024);
@@ -277,3 +284,140 @@ WebServer
 
 HttpConn
     负责单个连接的读写和 HTTP 请求响应流程
+
+
+============================================================
+9. 第一版细节约定
+============================================================
+
+1. include/epoller.h 需要包含：
+
+   <cstddef>
+   <cstdint>
+   <vector>
+   <sys/epoll.h>
+
+   原因：
+   size_t 来自 <cstddef>；
+   uint32_t 来自 <cstdint>；
+   std::vector 来自 <vector>；
+   epoll_event / EPOLLIN 等来自 <sys/epoll.h>。
+
+2. 构造函数中使用 epoll_create1(0) 创建 epollFd_。
+
+   第一版可以使用 assert(epollFd_ >= 0) 做开发期保护。
+   后面 WebServer 联调时，如果需要更完整错误处理，再统一增强。
+
+3. AddFd / ModFd / DelFd 遇到非法 fd 时直接返回 false。
+
+   例如：
+   fd < 0
+   epollFd_ < 0
+
+   Epoller 不负责修复非法 fd，只负责拒绝操作。
+
+4. GetEventFd / GetEvents 使用 assert(i < events_.size()) 做开发期保护。
+
+   调用方应该只在 0 <= i < Wait() 返回值 的范围内取事件。
+
+5. Wait 第一版直接返回 epoll_wait 的返回值。
+
+   返回值含义：
+   > 0：就绪事件数量
+   = 0：超时
+   < 0：出错
+
+   EINTR 等边界处理可以放到 WebServer 联调阶段再收尾。
+
+6. 第一版不做日志输出。
+
+   Epoller 是底层系统调用薄封装，失败时返回 false 或 -1。
+   是否记录日志由后面的 WebServer 决定。
+
+
+
+main.cpp测试代码：
+
+#include "epoller.h"
+
+#include <iostream>
+#include <string>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+int main() {
+    int fds[2] = {-1, -1};
+
+    // socketpair 创建一对互相连接的 socket fd
+    // fds[0] 写入数据后，fds[1] 会变成可读
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) < 0) {
+        std::cerr << "socketpair failed" << std::endl;
+        return 1;
+    }
+
+    Epoller epoller;
+
+    // 监听 fds[1] 的可读事件
+    if (!epoller.AddFd(fds[1], EPOLLIN)) {
+        std::cerr << "AddFd failed" << std::endl;
+        close(fds[0]);
+        close(fds[1]);
+        return 1;
+    }
+
+    std::string msg = "hello epoller";
+
+    // 往 fds[0] 写数据，触发 fds[1] 的 EPOLLIN
+    ssize_t writeLen = write(fds[0], msg.c_str(), msg.size());
+    if (writeLen < 0) {
+        std::cerr << "write failed" << std::endl;
+        close(fds[0]);
+        close(fds[1]);
+        return 1;
+    }
+
+    // 最多等待 1000ms，正常情况下会立刻返回 1 个事件
+    int eventCnt = epoller.Wait(1000);
+    if (eventCnt < 0) {
+        std::cerr << "Epoller Wait failed" << std::endl;
+        close(fds[0]);
+        close(fds[1]);
+        return 1;
+    }
+
+    if (eventCnt == 0) {
+        std::cerr << "Epoller Wait timeout" << std::endl;
+        close(fds[0]);
+        close(fds[1]);
+        return 1;
+    }
+
+    std::cout << "event count: " << eventCnt << std::endl;
+
+    bool ok = false;
+
+    for (int i = 0; i < eventCnt; ++i) {
+        int fd = epoller.GetEventFd(static_cast<size_t>(i));
+        uint32_t events = epoller.GetEvents(static_cast<size_t>(i));
+
+        std::cout << "event fd: " << fd << std::endl;
+        std::cout << "target fd: " << fds[1] << std::endl;
+        std::cout << "events: " << events << std::endl;
+
+        if (fd == fds[1] && (events & EPOLLIN)) {
+            ok = true;
+        }
+    }
+
+    if (ok) {
+        std::cout << "Epoller socketpair test passed" << std::endl;
+    } else {
+        std::cerr << "Epoller socketpair test failed" << std::endl;
+    }
+
+    close(fds[0]);
+    close(fds[1]);
+
+    return ok ? 0 : 1;
+}

@@ -51,6 +51,7 @@ TinyReactor/
 │   ├── httpresponse.h
 │   ├── httpconn.h
 │   └── userservice.h
+│   └── epoller.h
 ├── src/              # 实现文件
 │   ├── buffer.cpp
 │   ├── log.cpp
@@ -60,6 +61,7 @@ TinyReactor/
 │   ├── httpresponse.cpp
 │   ├── httpconn.cpp
 │   ├── userservice.cpp
+│   ├── epoller.cpp
 │   └── main.cpp
 ├── resources/        # 静态资源目录
 ├── log/              # 运行时日志文件
@@ -156,6 +158,19 @@ HTTP 模块已经完成静态 GET、POST 表单解析、登录注册路由和 My
 - `UserService` 负责登录 / 注册业务，通过 `SqlConnRAII` 从连接池取连接并访问 MySQL
 - 已通过 `socketpair` 测试完整链路：POST 请求 -> HttpConn -> UserService -> MySQL -> welcome/error 页面响应
 
+### Epoller — I/O 事件通知封装
+
+对 Linux `epoll` 做轻量 RAII 封装，作为 WebServer 的底层事件通知器。
+
+核心设计：
+- 构造时通过 `epoll_create1(0)` 创建 epoll 实例，析构时自动 `close`
+- `AddFd / ModFd / DelFd` 分别封装 `EPOLL_CTL_ADD / MOD / DEL`
+- `Wait()` 封装 `epoll_wait`，返回本轮就绪事件数量
+- `GetEventFd()` 和 `GetEvents()` 用于获取就绪 fd 以及对应事件类型
+- Epoller 只负责事件通知，不负责 accept、读写 socket、HTTP 解析、连接超时或线程调度
+
+已通过 `socketpair` 最小测试验证：向一端 fd 写入数据，另一端 fd 触发 `EPOLLIN`，`Wait / GetEventFd / GetEvents` 能正确返回。
+
 
 ## 待实现模块
 
@@ -170,7 +185,7 @@ HTTP 模块已经完成静态 GET、POST 表单解析、登录注册路由和 My
 | 7 | HTTP 响应封装 | ✅ 完成 |
 | 8 | HTTP 连接处理 | ✅ 完成 |
 | 9 | 登录注册业务 | ✅ 完成 |
-| 10 | Epoller | 🔲 待实现 |
+| 10 | Epoller | ✅ 完成 |
 | 11 | WebServer | 🔲 待实现 |
 
 ## 参考说明

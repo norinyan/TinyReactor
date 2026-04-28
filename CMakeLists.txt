@@ -17,5 +17,7 @@ add_executable(server
     src/httpresponse.cpp
     src/httpconn.cpp
     src/userservice.cpp
+    src/epoller.cpp
+    src/webserver.cpp
 )
 target_link_libraries(server mysqlclient)

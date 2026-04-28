@@ -29,7 +29,8 @@
 │   ├── httprequest.h
 │   ├── httpresponse.h
 │   ├── httpconn.h
-│   └── userservice.h
+│   ├── userservice.h
+│   └── epoller.h
 ├── src/
 │   ├── buffer.cpp
 │   ├── log.cpp
@@ -39,6 +40,7 @@
 │   ├── httpresponse.cpp
 │   ├── httpconn.cpp
 │   ├── userservice.cpp
+│   ├── epoller.cpp
 │   └── main.cpp
 ├── resources/
 └── ref_project/
@@ -56,6 +58,7 @@
 - **HttpResponse**：HTTP 响应生成器，支持状态行、响应头、MIME、Content-Length、mmap 静态文件、错误页兜底
 - **HttpConn**：单连接 HTTP 流程封装，负责 Read / Process / Write，使用 writev 发送响应头和 mmap 文件
 - **UserService**：登录 / 注册业务层，通过 SqlConnRAII 使用 MySQL 连接池，支持 Login / Register
+- **Epoller**：Linux epoll 轻量封装，负责 fd 事件注册、修改、删除和等待，已通过 socketpair 验证 EPOLLIN 事件通知链路
 
 
 
@@ -69,8 +72,9 @@
 7. ~~HTTP 响应封装~~
 8. ~~HTTP 连接处理~~
 9. ~~登录注册业务~~
-10. Epoller
+10. ~~Epoller~~
 11. WebServer
+
 
 ## 代码规范
 - C++17
