@@ -102,50 +102,6 @@ int main() {
 
     sqlpool->ClosePool();
 
-    // ---- 测 HttpRequest：GET ----
-    {
-        HttpRequest req;
-        Buffer reqBuff;
-
-        std::string rawGet =
-            "GET /index HTTP/1.1\r\n"
-            "Host: 127.0.0.1\r\n"
-            "Connection: keep-alive\r\n"
-            "\r\n";
-
-        reqBuff.Append(rawGet.c_str(), rawGet.size());
-
-        bool ok = req.parse(reqBuff);
-        std::cout << "[HttpRequest][GET] parse: " << (ok ? "ok" : "fail") << std::endl;
-        std::cout << "[HttpRequest][GET] method: " << req.method() << std::endl;
-        std::cout << "[HttpRequest][GET] path: " << req.path() << std::endl;       // 预期 /index.html
-        std::cout << "[HttpRequest][GET] version: " << req.version() << std::endl; // 预期 1.1
-        std::cout << "[HttpRequest][GET] keepAlive: " << req.IsKeepAlive() << std::endl;
-    }
-
-    // ---- 测 HttpRequest：POST（不走登录/注册，避免依赖数据库表）----
-    {
-        HttpRequest req;
-        Buffer reqBuff;
-
-        std::string body = "username=tom&password=123456&city=Bei+Jing";
-        std::string rawPost =
-            "POST /api HTTP/1.1\r\n"
-            "Host: 127.0.0.1\r\n"
-            "Content-Type: application/x-www-form-urlencoded\r\n"
-            "Content-Length: " + std::to_string(body.size()) + "\r\n"
-            "\r\n" + body;
-
-        reqBuff.Append(rawPost.c_str(), rawPost.size());
-
-        bool ok = req.parse(reqBuff);
-        std::cout << "[HttpRequest][POST] parse: " << (ok ? "ok" : "fail") << std::endl;
-        std::cout << "[HttpRequest][POST] method: " << req.method() << std::endl;
-        std::cout << "[HttpRequest][POST] path: " << req.path() << std::endl; // 预期 /api
-        std::cout << "[HttpRequest][POST] username: " << req.GetPost("username") << std::endl;
-        std::cout << "[HttpRequest][POST] password: " << req.GetPost("password") << std::endl;
-        std::cout << "[HttpRequest][POST] city: " << req.GetPost("city") << std::endl; // 预期 "Bei Jing"
-    }
 
 
     return 0;

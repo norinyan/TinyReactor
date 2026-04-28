@@ -15,5 +15,7 @@ add_executable(server
     src/sqlconnpool.cpp
     src/httprequest.cpp
     src/httpresponse.cpp
+    src/httpconn.cpp
+    src/userservice.cpp
 )
 target_link_libraries(server mysqlclient)
