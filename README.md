@@ -35,19 +35,38 @@ make
 ## 目录结构
 
 ```
+## 目录结构
+
+```text
 TinyReactor/
 ├── include/          # 头文件
 │   ├── buffer.h
 │   ├── blockdeque.h
-│   └── log.h
+│   ├── log.h
+│   ├── threadpool.h
+│   ├── heaptimer.h
+│   ├── sqlconnpool.h
+│   ├── sqlconnRAII.h
+│   ├── httprequest.h
+│   ├── httpresponse.h
+│   ├── httpconn.h
+│   └── userservice.h
 ├── src/              # 实现文件
 │   ├── buffer.cpp
 │   ├── log.cpp
+│   ├── heaptimer.cpp
+│   ├── sqlconnpool.cpp
+│   ├── httprequest.cpp
+│   ├── httpresponse.cpp
+│   ├── httpconn.cpp
+│   ├── userservice.cpp
 │   └── main.cpp
-├── log/              # 运行时日志文件（不进 git）
+├── resources/        # 静态资源目录
+├── log/              # 运行时日志文件
 ├── CMakeLists.txt
 ├── Dockerfile
 └── docker-compose.yml
+
 ```
 
 ## 已实现模块
@@ -126,6 +145,17 @@ TinyReactor/
 
 配套 `SqlConnRAII`：RAII 包装器，构造时自动调 `GetConn()` 取连接，析构时自动调 `FreeConn()` 还连接，禁用拷贝和移动，保证连接不会被重复归还或泄漏。任何代码路径退出作用域都能安全归还连接。
 
+### HTTP 模块 — 请求解析、响应生成、连接处理
+
+HTTP 模块已经完成静态 GET、POST 表单解析、登录注册路由和 MySQL 业务接入。
+
+核心设计：
+- `HttpRequest` 负责解析请求行、请求头、请求体，支持 `application/x-www-form-urlencoded` 表单解析
+- `HttpResponse` 负责生成状态行、响应头、Content-Type、Content-Length，并通过 `mmap` 映射静态文件
+- `HttpConn` 负责单个连接的读写流程，串联 `Read -> Parse -> HandleRequest -> MakeResponse -> Write`
+- `UserService` 负责登录 / 注册业务，通过 `SqlConnRAII` 从连接池取连接并访问 MySQL
+- 已通过 `socketpair` 测试完整链路：POST 请求 -> HttpConn -> UserService -> MySQL -> welcome/error 页面响应
+
 
 ## 待实现模块
 
@@ -134,12 +164,14 @@ TinyReactor/
 | 1 | Buffer | ✅ 完成 |
 | 2 | Log | ✅ 完成 |
 | 3 | ThreadPool | ✅ 完成 |
-| 4 | HeapTimer | ✅ 完成  |
+| 4 | HeapTimer | ✅ 完成 |
 | 5 | MySQL 连接池 | ✅ 完成 |
-| 6 | HTTP 请求解析 | 🔲 待实现 |
-| 7 | HTTP 响应封装 | 🔲 待实现 |
-| 8 | Epoller | 🔲 待实现 |
-| 9 | WebServer | 🔲 待实现 |
+| 6 | HTTP 请求解析 | ✅ 完成 |
+| 7 | HTTP 响应封装 | ✅ 完成 |
+| 8 | HTTP 连接处理 | ✅ 完成 |
+| 9 | 登录注册业务 | ✅ 完成 |
+| 10 | Epoller | 🔲 待实现 |
+| 11 | WebServer | 🔲 待实现 |
 
 ## 参考说明
 

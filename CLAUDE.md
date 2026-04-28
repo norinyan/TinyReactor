@@ -17,7 +17,7 @@
 - 编译：`cd /workspace/build && cmake .. && make`
 
 ## 项目结构
-```
+```text
 ├── include/
 │   ├── buffer.h
 │   ├── blockdeque.h
@@ -25,13 +25,24 @@
 │   ├── threadpool.h
 │   ├── heaptimer.h
 │   ├── sqlconnpool.h
-│   └── sqlconnRAII.h
+│   ├── sqlconnRAII.h
+│   ├── httprequest.h
+│   ├── httpresponse.h
+│   ├── httpconn.h
+│   └── userservice.h
 ├── src/
 │   ├── buffer.cpp
 │   ├── log.cpp
 │   ├── heaptimer.cpp
 │   ├── sqlconnpool.cpp
+│   ├── httprequest.cpp
+│   ├── httpresponse.cpp
+│   ├── httpconn.cpp
+│   ├── userservice.cpp
 │   └── main.cpp
+├── resources/
+└── ref_project/
+
 ```
 
 ## 已完成模块
@@ -41,6 +52,12 @@
 - **ThreadPool**：固定大小线程池，任务队列 + 条件变量唤醒，支持并发执行任务
 - **HeapTimer**：最小堆定时器，管理连接超时，支持 O(1) 定位更新
 - **SqlConnPool**：MySQL 连接池，信号量控制并发取连接，SqlConnRAII 自动管理连接借还
+- **HttpRequest**：HTTP 请求解析器，支持请求行、请求头、Content-Length、POST body、urlencoded 表单解析
+- **HttpResponse**：HTTP 响应生成器，支持状态行、响应头、MIME、Content-Length、mmap 静态文件、错误页兜底
+- **HttpConn**：单连接 HTTP 流程封装，负责 Read / Process / Write，使用 writev 发送响应头和 mmap 文件
+- **UserService**：登录 / 注册业务层，通过 SqlConnRAII 使用 MySQL 连接池，支持 Login / Register
+
+
 
 ## 待实现模块
 1. ~~Buffer~~
@@ -48,10 +65,12 @@
 3. ~~ThreadPool~~
 4. ~~HeapTimer~~
 5. ~~MySQL 连接池~~
-6. HTTP 请求解析
-7. HTTP 响应封装
-8. Epoller
-9. WebServer
+6. ~~HTTP 请求解析~~
+7. ~~HTTP 响应封装~~
+8. ~~HTTP 连接处理~~
+9. ~~登录注册业务~~
+10. Epoller
+11. WebServer
 
 ## 代码规范
 - C++17
