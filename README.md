@@ -50,8 +50,9 @@ TinyReactor/
 │   ├── httprequest.h
 │   ├── httpresponse.h
 │   ├── httpconn.h
-│   └── userservice.h
-│   └── epoller.h
+│   ├── userservice.h
+│   ├── epoller.h
+│   └── webserver.h
 ├── src/              # 实现文件
 │   ├── buffer.cpp
 │   ├── log.cpp
@@ -62,13 +63,13 @@ TinyReactor/
 │   ├── httpconn.cpp
 │   ├── userservice.cpp
 │   ├── epoller.cpp
+│   ├── webserver.cpp
 │   └── main.cpp
 ├── resources/        # 静态资源目录
 ├── log/              # 运行时日志文件
 ├── CMakeLists.txt
 ├── Dockerfile
 └── docker-compose.yml
-
 ```
 
 ## 已实现模块
@@ -171,6 +172,22 @@ HTTP 模块已经完成静态 GET、POST 表单解析、登录注册路由和 My
 
 已通过 `socketpair` 最小测试验证：向一端 fd 写入数据，另一端 fd 触发 `EPOLLIN`，`Wait / GetEventFd / GetEvents` 能正确返回。
 
+### WebServer — Reactor 总调度中心
+
+WebServer 负责把前面所有模块组装成完整服务器，完成监听端口、接收连接、事件分发、线程池处理、定时器超时清理和 HTTP 响应写回。
+
+核心设计：
+- `socket / bind / listen` 初始化监听 socket，并设置 `SO_REUSEADDR`
+- 监听 fd 和客户端 fd 都设置为非阻塞，配合 epoll ET 模式使用
+- `Epoller` 负责事件通知，`WebServer` 根据 `EPOLLIN / EPOLLOUT / EPOLLERR` 分发处理
+- `HttpConn` 负责单连接的 `Read / Process / Write`
+- `ThreadPool` 执行读写和请求处理任务，主线程专注事件循环
+- `HeapTimer` 管理连接超时，连接正常关闭时主动移除 timer
+- 支持静态 GET、POST 登录注册、keep-alive 和连接关闭
+
+已通过真实 TCP 请求验证：`GET /`、`GET /login.html`、`Connection: keep-alive`、`POST /register.html`、`POST /login.html`。
+
+
 
 ## 待实现模块
 
@@ -186,7 +203,17 @@ HTTP 模块已经完成静态 GET、POST 表单解析、登录注册路由和 My
 | 8 | HTTP 连接处理 | ✅ 完成 |
 | 9 | 登录注册业务 | ✅ 完成 |
 | 10 | Epoller | ✅ 完成 |
-| 11 | WebServer | 🔲 待实现 |
+| 11 | WebServer | ✅ 完成 |
+
+
+## 已验证功能
+
+- `GET /`：返回首页静态资源
+- `GET /login.html`：返回登录页面
+- `Connection: keep-alive`：同一 TCP 连接连续请求成功
+- `POST /register.html`：注册链路接入 MySQL
+- `POST /login.html`：登录成功返回 welcome 页面
+
 
 ## 参考说明
 

@@ -128,22 +128,39 @@ void HeapTimer::update(int id, int timeoutMs) {
 }
 
 // ================================================================
+// remove：主动删除某个连接的计时器
+// 连接正常关闭时调用，避免堆里留下已经关闭的 fd
+// ================================================================
+void HeapTimer::remove(int id) {
+    auto it = ref_.find(id);
+    if (it == ref_.end()) {
+        return;
+    }
+
+    del_(it->second);
+}
+
+
+// ================================================================
 // tick：检查堆顶，把所有已超时的连接触发回调并删除
+// 注意：先从堆中删除节点，再执行回调
+// 这样回调里的 CloseConn_() 即使调用 timer_.remove(fd)，也不会重复删除同一个节点
 // ================================================================
 void HeapTimer::tick() {
-    if (heap_.empty()) return;
-
     while (!heap_.empty()) {
-        TimerNode& node = heap_.front();  // 堆顶，最快过期的那个
+        TimerNode node = heap_.front();
 
-        // 还没到期，停止
+        // 堆顶还没到期，后面的节点更不可能到期，直接停止
         if (std::chrono::duration_cast<MS>(node.expires - Clock::now()).count() > 0) {
             break;
         }
 
-        // 已过期：执行回调，删掉这个节点
-        node.cb();
+        // 先删除 timer 节点，再执行超时回调
         pop();
+
+        if (node.cb) {
+            node.cb();
+        }
     }
 }
 
@@ -169,6 +186,8 @@ void HeapTimer::clear() {
 // 堆空返回 -1，epoll_wait 无限等待
 // ================================================================
 int HeapTimer::getNextTick() {
+    tick();
+
     if (heap_.empty()) return -1;
 
     // 计算堆顶距离现在还有多少毫秒

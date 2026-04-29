@@ -61,6 +61,20 @@ void HttpConn::Close() {
     }
 }
 
+void HttpConn::Reset() {
+    readBuff_.RetrieveAll();
+    writeBuff_.RetrieveAll();
+
+    request_.Init();
+    response_.UnmapFile();
+
+    iov_[0].iov_base = nullptr;
+    iov_[0].iov_len = 0;
+    iov_[1].iov_base = nullptr;
+    iov_[1].iov_len = 0;
+    iovCnt_ = 0;
+}
+
 // ================================================================
 // 2. Socket 读写
 //    Read：把 socket 数据读进 readBuff_

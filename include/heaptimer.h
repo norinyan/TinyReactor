@@ -23,6 +23,9 @@ public:
     // 连接有新数据来了，刷新它的超时时间
     void update(int id, int timeoutMs);
 
+    // 主动删除某个连接的计时器
+    void remove(int id);
+
     // 检查堆顶，把所有已超时的连接触发回调并清除
     void tick();
 

@@ -30,7 +30,8 @@
 │   ├── httpresponse.h
 │   ├── httpconn.h
 │   ├── userservice.h
-│   └── epoller.h
+│   ├── epoller.h
+│   └── webserver.h
 ├── src/
 │   ├── buffer.cpp
 │   ├── log.cpp
@@ -41,6 +42,7 @@
 │   ├── httpconn.cpp
 │   ├── userservice.cpp
 │   ├── epoller.cpp
+│   ├── webserver.cpp
 │   └── main.cpp
 ├── resources/
 └── ref_project/
@@ -59,6 +61,7 @@
 - **HttpConn**：单连接 HTTP 流程封装，负责 Read / Process / Write，使用 writev 发送响应头和 mmap 文件
 - **UserService**：登录 / 注册业务层，通过 SqlConnRAII 使用 MySQL 连接池，支持 Login / Register
 - **Epoller**：Linux epoll 轻量封装，负责 fd 事件注册、修改、删除和等待，已通过 socketpair 验证 EPOLLIN 事件通知链路
+- **WebServer**：Reactor 总调度中心，整合 Epoller、HttpConn、ThreadPool、HeapTimer、Log、SqlConnPool，支持真实 TCP 请求、静态资源、keep-alive、登录注册链路
 
 
 
@@ -73,8 +76,7 @@
 8. ~~HTTP 连接处理~~
 9. ~~登录注册业务~~
 10. ~~Epoller~~
-11. WebServer
-
+11. ~~WebServer~~
 
 ## 代码规范
 - C++17

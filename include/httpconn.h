@@ -22,6 +22,9 @@ public:
     // 关闭连接
     void Close();
 
+    // 重置一次请求/响应上下文，保留当前连接 fd
+    void Reset();
+    
     // 从 socket 读数据到 readBuff_
     ssize_t Read(int* saveErrno);
 
